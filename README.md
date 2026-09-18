@@ -1,70 +1,140 @@
-# AlumniOS
+# Alumni Network Hub
 
-AlumniOS is a modern, multi-tenant Alumni Management Platform designed to transform how universities engage with their alumni networks. It provides a comprehensive suite of tools for both administrators and alumni, facilitating networking, mentorship, event management, and data-driven insights.
+Build "AlumniConnect" — a full-stack alumni management platform for universities.
 
-## Core Features
+CORE PHILOSOPHY:
 
-### For Universities (Admins)
-- **Multi-Tenant Architecture**: Securely manage data isolated by university subdomain (e.g., `tenant1.alumnios.com`).
-- **Advanced Directory & Segmentation**: Filter alumni by industry, location, and impact. Create dynamic segments for targeted outreach.
-- **Engagement & Impact Scoring**: Automatically calculate alumni "Impact Scores" based on event attendance, mentorship, and donations to identify highly engaged community members.
-- **Data Quality Tracking**: Monitor the freshness and completeness of alumni profiles.
-- **Automated Campaigns**: Build automated workflows for engagement, re-engagement, and fundraising campaigns.
-- **Mentorship Matching**: AI-assisted and manual matching of mentors and mentees.
-- **Hybrid Event Management**: Organize and manage physical, virtual, and hybrid events. Track RSVPs and attendance modes.
-- **QR Verification & Check-in**: Securely verify alumni IDs via QR scanning for event check-ins or campus access.
+Most alumni platforms fail because they're glorified directories nobody opens after graduation. 
 
-### For Alumni (Users)
-- **Digital Alumni Passport**: A dynamic, secure Digital ID (with QR code) for verified access to campus facilities and events.
-- **Interactive Directory & Network**: Find and connect with fellow alumni based on shared interests, industries, or geographic locations.
-- **Mentorship Programs**: Easily opt-in to become a mentor or find a mentor within the network.
-- **Event Registration**: Register for upcoming physical, virtual, or hybrid events.
-- **Profile Management**: Keep contact information, job history, and engagement preferences up to date.
+Build for daily/weekly utility, not a one-time signup. The engine is: verified profiles → 
 
-## Tech Stack
-- **Framework**: Next.js (App Router)
-- **Styling**: Tailwind CSS
-- **Database & Auth**: Supabase (PostgreSQL)
-- **Icons**: Lucide React
+searchable network → real value exchange (jobs, mentorship, events, giving).
 
-## Getting Started
+TECH STACK:
 
-1. Clone the repository and install dependencies:
-   ```bash
-   npm install
-   ```
+- React + Vite + TypeScript
 
-2. Set up your Supabase project and environment variables:
-   Create a `.env.local` file with your Supabase credentials:
-   ```env
-   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-   SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-   ```
+- Tailwind CSS (clean, modern, university-branded — customizable primary color)
 
-3. Run migrations:
-   Ensure you run the SQL scripts found in `supabase/migrations/` to set up the multi-tenant schema, tables, and triggers (including the Impact Score triggers).
+- Supabase (auth, Postgres database, storage for profile photos/documents)
 
-4. Start the development server:
-   ```bash
-   npm run dev
-   ```
+- React Router for navigation
 
-5. Access the app:
-   - Platform Landing Page: `http://localhost:3000`
-   - Tenant Portal (e.g., for 'demo' uni): `http://localhost:3000/tenant/demo`
-   - Tenant Admin Dashboard: `http://localhost:3000/tenant/demo/admin`
+USER ROLES:
 
-## Architecture Overview
+1. Alumni — profile, network, jobs, mentorship, events, giving
 
-The system uses a Supabase backend with Row Level Security (RLS) to enforce strict data isolation between tenants.
+2. Students — limited access: browse mentors, view job board, RSVP events
 
-- `public.universities`: Stores tenant information and subdomains.
-- `public.alumni_profiles`: Unified profile table storing engagement metrics, impact scores, and data quality scores.
-- `public.activity_logs`: An append-only log of alumni activities that automatically triggers recalculation of the Impact Score via a PostgreSQL trigger function.
-- `public.event_registrations`: Links alumni to events, tracking whether they attend in-person or virtually.
-- `public.student_alumni_connections`: Tracks mentorship pairings and networking connections.
-- `public.campaign_automations`: Stores automated communication workflows for specific alumni segments.
+3. Admin (university staff) — manage verification, moderate content, view analytics
 
-## License
-MIT License
+CORE FEATURES:
+
+1. AUTH & VERIFICATION
+
+- Sign up with email + graduation year + degree program
+
+- Admin approval queue to verify alumni status (badge once verified)
+
+- Profile: photo, bio, current job/company, location, degree, grad year, skills tags, 
+
+  social links (LinkedIn, portfolio)
+
+2. ALUMNI DIRECTORY / NETWORK
+
+- Searchable + filterable grid (by year, industry, location, company, skills)
+
+- Card view with quick "Connect" button
+
+- Individual profile pages
+
+3. JOB BOARD
+
+- Alumni post job openings at their companies
+
+- Students/alumni apply or express interest
+
+- Filter by industry, location, remote/onsite
+
+4. MENTORSHIP MATCHING
+
+- Alumni opt-in as mentors with topics they can help with
+
+- Students/junior alumni send mentorship requests
+
+- Simple accept/decline + messaging thread
+
+5. EVENTS
+
+- Admin/alumni create events (reunions, webinars, networking nights)
+
+- RSVP system with attendee count
+
+- Past events archive with photos
+
+6. GIVING / DONATIONS
+
+- Simple donation page (mock payment flow — Stripe placeholder)
+
+- Campaign progress bars (e.g., "Scholarship Fund: $45k / $100k")
+
+- Donor recognition wall (opt-in)
+
+7. ADMIN DASHBOARD
+
+- Verification queue
+
+- Analytics: total alumni, engagement rate, donation totals, job postings
+
+- Content moderation
+
+DESIGN:
+
+- Clean, premium, trustworthy — think Stripe/Linear aesthetic, not a stuffy university portal
+
+- Dark mode toggle
+
+- Mobile responsive
+
+- Empty states and loading skeletons everywhere (no blank screens)
+
+DATABASE (Supabase tables):
+
+- profiles (user info, role, verification status)
+
+- connections (alumni-to-alumni links)
+
+- jobs (postings)
+
+- mentorship_requests
+
+- events + event_rsvps
+
+- donations + campaigns
+
+Start with auth + profile creation + directory as the MVP, then layer in jobs, 
+
+mentorship, events, and giving. Make it feel alive with realistic seed/demo data.
+
+DO NOT USE LOVABLE CLOUD. use the supabase there and you have full access to it
+
+This project was built with [Lovable](https://lovable.dev).
+
+## Build with Lovable
+
+Continue developing this project in the [Lovable editor](https://lovable.dev/projects/9268b0b5-202e-460d-aeaf-8f3c48f1e338).
+
+- **Ship faster**: describe what you want to build and Lovable handles the code.
+- **Stay in sync**: every change made in Lovable is committed straight to this repository.
+- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
+
+## Development
+
+Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+
+```sh
+git clone <this-repository-url>
+cd <repository-name>
+npm i
+npm run dev
+```
