@@ -137,7 +137,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
-          <div className="flex min-h-screen flex-col bg-background text-foreground">
+          <div className="flex min-h-screen flex-col bg-background text-foreground overflow-x-hidden">
             <SiteHeader />
             <main className="flex-1">
               {/* Required: nested routes render here. */}

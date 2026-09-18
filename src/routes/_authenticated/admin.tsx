@@ -194,12 +194,16 @@ function AdminPage() {
 
   if (!isAdmin) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-16">
-        <EmptyState
-          icon={ShieldAlert}
-          title="Staff access only"
-          description="This dashboard is limited to university staff accounts."
-        />
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <div className="mx-auto max-w-md text-center">
+          <ShieldAlert className="mx-auto h-12 w-12 text-muted-foreground" />
+          <h1 className="mt-4 text-2xl font-bold tracking-tight text-foreground">
+            Staff access only
+          </h1>
+          <p className="mt-2 text-muted-foreground">
+            This dashboard is limited to university staff accounts.
+          </p>
+        </div>
       </div>
     );
   }

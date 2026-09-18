@@ -130,7 +130,7 @@ function MyProfile() {
               <AvatarImage src={profile?.avatar_url ?? undefined} alt="" />
               <AvatarFallback>{initials(profile?.full_name ?? "?")}</AvatarFallback>
             </Avatar>
-            <p className="mt-3 font-semibold">{profile?.full_name ?? session?.user.email}</p>
+            <p className="mt-3 font-semibold break-all">{profile?.full_name ?? session?.user.email}</p>
             <div className="mt-2 flex justify-center">
               {profile?.status === "verified" ? (
                 <Badge className="gap-1">
