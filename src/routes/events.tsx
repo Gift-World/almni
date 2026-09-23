@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CalendarDays, Check, MapPin, Plus, Users, Video } from "lucide-react";
+import { CalendarDays, Check, Handshake, MapPin, Plus, Users, Video } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -92,6 +92,18 @@ function EventsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const logOutcome = useMutation({
+    mutationFn: async (eventId: string) => {
+      if (!profile) throw new Error("Sign in to record an event outcome");
+      const { error } = await supabase
+        .from("event_outcomes")
+        .insert({ event_id: eventId, profile_id: profile.id, outcome_type: "connection" });
+      if (error) throw error;
+    },
+    onSuccess: () => toast.success("Connection recorded — thank you for closing the loop."),
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   const createEvent = useMutation({
     mutationFn: async (form: FormData) => {
       if (!profile) throw new Error("Create your profile first");
@@ -121,7 +133,13 @@ function EventsPage() {
     .filter((e) => new Date(e.starts_at).getTime() < now)
     .sort((a, b) => new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime());
 
-  function Card({ event, isPast }: { event: EventRow & { event_rsvps: { profile_id: string }[] }; isPast?: boolean }) {
+  function Card({
+    event,
+    isPast,
+  }: {
+    event: EventRow & { event_rsvps: { profile_id: string }[] };
+    isPast?: boolean;
+  }) {
     const going = !!profile && event.event_rsvps.some((r) => r.profile_id === profile.id);
     return (
       <article className="card-surface card-interactive flex flex-col overflow-hidden">
@@ -152,13 +170,26 @@ function EventsPage() {
               <MapPin className="size-3.5" /> {event.location}
             </p>
           ) : null}
-          <p className="mt-3 line-clamp-3 flex-1 text-sm text-muted-foreground">{event.description}</p>
+          <p className="mt-3 line-clamp-3 flex-1 text-sm text-muted-foreground">
+            {event.description}
+          </p>
           <div className="mt-5 flex items-center justify-between">
             <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
               <Users className="size-4" /> {event.event_rsvps.length}{" "}
               {isPast ? "attended" : "going"}
             </span>
-            {isPast ? null : session ? (
+            {isPast ? (
+              session ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => logOutcome.mutate(event.id)}
+                  disabled={logOutcome.isPending}
+                >
+                  <Handshake className="size-4" /> I made a connection
+                </Button>
+              ) : null
+            ) : session ? (
               <Button
                 size="sm"
                 variant={going ? "secondary" : "default"}

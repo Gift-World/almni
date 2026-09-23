@@ -25,6 +25,7 @@ const NAV = [
   { to: "/businesses", label: "Businesses" },
   { to: "/feed", label: "Feed" },
   { to: "/map", label: "Map" },
+  { to: "/chapters", label: "Chapters" },
   { to: "/jobs", label: "Jobs" },
   { to: "/mentorship", label: "Mentorship" },
   { to: "/events", label: "Events" },

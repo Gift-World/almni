@@ -15,13 +15,13 @@ export const Route = createFileRoute("/map")({
 // Extremely simple geocoder fallback since we don't have lat/lng in DB
 const LOCATION_COORDS: Record<string, [number, number]> = {
   "San Francisco, CA": [37.7749, -122.4194],
-  "New York, NY": [40.7128, -74.0060],
-  "London": [51.5074, -0.1278],
-  "Lagos": [6.5244, 3.3792],
-  "Toronto, ON": [43.6510, -79.3470],
-  "Berlin": [52.5200, 13.4050],
-  "Singapore": [1.3521, 103.8198],
-  "Sydney": [-33.8688, 151.2093],
+  "New York, NY": [40.7128, -74.006],
+  London: [51.5074, -0.1278],
+  Lagos: [6.5244, 3.3792],
+  "Toronto, ON": [43.651, -79.347],
+  Berlin: [52.52, 13.405],
+  Singapore: [1.3521, 103.8198],
+  Sydney: [-33.8688, 151.2093],
 };
 
 function GlobalMap() {
@@ -40,28 +40,30 @@ function GlobalMap() {
 
   const markers = useMemo(() => {
     if (!profiles) return [];
-    
+
     return profiles.map((p) => {
-      // Very basic mock geocoding logic for MVP. 
+      // Very basic mock geocoding logic for MVP.
       // In a real app, lat/lng would be stored in the DB using PostGIS or populated via Geocoding API on profile update.
       let coords = LOCATION_COORDS[p.location as string];
-      
+
       // If we don't have exact coords, spread them around slightly so they don't all stack on [0,0]
       if (!coords) {
         // Pseudo-random based on id string length just for visuals
         const offsetLat = (p.id.length % 100) * 0.1 - 5;
         const offsetLng = (p.id.charCodeAt(0) % 100) * 0.1 - 5;
-        
+
         // Default country approximations
-        if (p.country === 'Nigeria') coords = [9.0820 + offsetLat, 8.6753 + offsetLng];
-        else if (p.country === 'United Kingdom') coords = [55.3781 + offsetLat, -3.4360 + offsetLng];
-        else if (p.country === 'Canada') coords = [56.1304 + offsetLat, -106.3468 + offsetLng];
+        if (p.country === "Nigeria") coords = [9.082 + offsetLat, 8.6753 + offsetLng];
+        else if (p.country === "United Kingdom") coords = [55.3781 + offsetLat, -3.436 + offsetLng];
+        else if (p.country === "Canada") coords = [56.1304 + offsetLat, -106.3468 + offsetLng];
         else coords = [39.8283 + offsetLat, -98.5795 + offsetLng]; // US Default
       }
 
-      // Add small jitter to prevent exact overlapping
-      const jitterLat = (Math.random() - 0.5) * 0.02;
-      const jitterLng = (Math.random() - 0.5) * 0.02;
+      // Deterministic offset prevents overlapping pins without making people appear to move
+      // whenever the map re-renders.
+      const hash = [...p.id].reduce((total, character) => total + character.charCodeAt(0), 0);
+      const jitterLat = ((hash % 17) - 8) * 0.002;
+      const jitterLng = (((hash * 7) % 17) - 8) * 0.002;
 
       return {
         ...p,
@@ -91,9 +93,7 @@ function GlobalMap() {
             <Users className="size-5" />
           </div>
           <div>
-            <div className="text-2xl font-bold">
-              {new Set(markers.map((m) => m.country)).size}
-            </div>
+            <div className="text-2xl font-bold">{new Set(markers.map((m) => m.country)).size}</div>
             <div className="text-xs text-muted-foreground">Countries Represented</div>
           </div>
         </div>
@@ -105,11 +105,13 @@ function GlobalMap() {
             <div className="size-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
           </div>
         ) : (
-          <Suspense fallback={
-            <div className="flex h-full items-center justify-center bg-muted/20">
-              <div className="size-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-            </div>
-          }>
+          <Suspense
+            fallback={
+              <div className="flex h-full items-center justify-center bg-muted/20">
+                <div className="size-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+              </div>
+            }
+          >
             {typeof window !== "undefined" && <ClientMap markers={markers} />}
           </Suspense>
         )}

@@ -23,6 +23,11 @@ export function SiteFooter() {
                 Find a mentor
               </Link>
             </li>
+            <li>
+              <Link to="/chapters" className="hover:text-foreground">
+                Global chapters
+              </Link>
+            </li>
           </ul>
         </div>
         <div className="text-sm">
