@@ -14,6 +14,7 @@ import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { AuthProvider } from "@/lib/auth";
 import { ThemeProvider } from "@/lib/theme";
+import { TenantProvider } from "@/lib/TenantContext";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -135,19 +136,21 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <AuthProvider>
-          <div className="flex min-h-screen flex-col bg-background text-foreground overflow-x-hidden">
-            <SiteHeader />
-            <main className="flex-1">
-              {/* Required: nested routes render here. */}
-              <Outlet />
-            </main>
-            <SiteFooter />
-          </div>
-          <Toaster richColors position="top-center" />
-        </AuthProvider>
-      </ThemeProvider>
+      <TenantProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <div className="flex min-h-screen flex-col bg-background text-foreground overflow-x-hidden">
+              <SiteHeader />
+              <main className="flex-1">
+                {/* Required: nested routes render here. */}
+                <Outlet />
+              </main>
+              <SiteFooter />
+            </div>
+            <Toaster richColors position="top-center" />
+          </AuthProvider>
+        </ThemeProvider>
+      </TenantProvider>
     </QueryClientProvider>
   );
 }

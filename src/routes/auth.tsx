@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { GraduationCap } from "lucide-react";
+import { GraduationCap, Eye, EyeOff } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { useTenant } from "@/lib/TenantContext";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -32,7 +33,9 @@ export const Route = createFileRoute("/auth")({
 function AuthPage() {
   const navigate = useNavigate();
   const { session } = useAuth();
+  const { tenant } = useTenant();
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (session) navigate({ to: "/profile", replace: true });
@@ -74,6 +77,7 @@ function AuthPage() {
     if (data.session?.user) {
       const { error: profileError } = await supabase.from("profiles").insert({
         user_id: data.session.user.id,
+        tenant_id: tenant?.id || '00000000-0000-0000-0000-000000000001',
         full_name: String(form.get("full_name")),
         email,
         degree: String(form.get("degree")),
@@ -120,13 +124,24 @@ function AuthPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="si-password">Password</Label>
-              <Input
-                id="si-password"
-                name="password"
-                type="password"
-                required
-                autoComplete="current-password"
-              />
+              <div className="relative">
+                <Input
+                  id="si-password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  autoComplete="current-password"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </Button>
+              </div>
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Signing in…" : "Sign in"}
@@ -146,14 +161,25 @@ function AuthPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="su-password">Password</Label>
-              <Input
-                id="su-password"
-                name="password"
-                type="password"
-                required
-                minLength={6}
-                autoComplete="new-password"
-              />
+              <div className="relative">
+                <Input
+                  id="su-password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  minLength={6}
+                  autoComplete="new-password"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </Button>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">

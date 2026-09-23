@@ -17,8 +17,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { initials } from "@/lib/format";
 import { useTheme } from "@/lib/theme";
+import { useTenant } from "@/lib/TenantContext";
 
 const NAV = [
+  { to: "/nexus", label: "Nexus Copilot" },
   { to: "/alumni", label: "Directory" },
   { to: "/businesses", label: "Businesses" },
   { to: "/feed", label: "Feed" },
@@ -32,6 +34,7 @@ const NAV = [
 export function SiteHeader() {
   const { session, profile, isAdmin } = useAuth();
   const { theme, toggle } = useTheme();
+  const { tenant, setTenantSlug } = useTenant();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -46,12 +49,24 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4">
-        <Link to="/" className="flex items-center gap-2 font-display text-lg font-bold">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <GraduationCap className="size-5" />
-          </span>
-          AlumniConnect
-        </Link>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="flex items-center gap-2 font-display text-lg font-bold px-2 hover:bg-transparent">
+              <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <GraduationCap className="size-5" />
+              </span>
+              {tenant?.name || "AlumniConnect"}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem onClick={() => setTenantSlug('default')}>
+              Default University
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setTenantSlug('stanford')}>
+              Stanford Demo (Requires DB entry)
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <nav className="hidden flex-1 items-center gap-1 md:flex">
           {NAV.map((item) => (

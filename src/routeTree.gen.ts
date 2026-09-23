@@ -21,6 +21,7 @@ import { Route as MapRouteImport } from './routes/map'
 import { Route as MentorshipRouteImport } from './routes/mentorship'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedMessagesRouteImport } from './routes/_authenticated/messages'
+import { Route as AuthenticatedNexusRouteImport } from './routes/_authenticated/nexus'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedRequestsRouteImport } from './routes/_authenticated/requests'
 import { Route as AlumniIndexRouteImport } from './routes/alumni.index'
@@ -85,6 +86,11 @@ const AuthenticatedMessagesRoute = AuthenticatedMessagesRouteImport.update({
   path: '/messages',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedNexusRoute = AuthenticatedNexusRouteImport.update({
+  id: '/nexus',
+  path: '/nexus',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -118,6 +124,7 @@ export interface FileRoutesByFullPath {
   '/mentorship': typeof MentorshipRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/messages': typeof AuthenticatedMessagesRoute
+  '/nexus': typeof AuthenticatedNexusRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/requests': typeof AuthenticatedRequestsRoute
   '/alumni/$id': typeof AlumniIdRoute
@@ -135,6 +142,7 @@ export interface FileRoutesByTo {
   '/mentorship': typeof MentorshipRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/messages': typeof AuthenticatedMessagesRoute
+  '/nexus': typeof AuthenticatedNexusRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/requests': typeof AuthenticatedRequestsRoute
   '/alumni/$id': typeof AlumniIdRoute
@@ -154,6 +162,7 @@ export interface FileRoutesById {
   '/mentorship': typeof MentorshipRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/messages': typeof AuthenticatedMessagesRoute
+  '/_authenticated/nexus': typeof AuthenticatedNexusRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/requests': typeof AuthenticatedRequestsRoute
   '/alumni/$id': typeof AlumniIdRoute
@@ -173,6 +182,7 @@ export interface FileRouteTypes {
     | '/mentorship'
     | '/admin'
     | '/messages'
+    | '/nexus'
     | '/profile'
     | '/requests'
     | '/alumni/$id'
@@ -190,6 +200,7 @@ export interface FileRouteTypes {
     | '/mentorship'
     | '/admin'
     | '/messages'
+    | '/nexus'
     | '/profile'
     | '/requests'
     | '/alumni/$id'
@@ -208,6 +219,7 @@ export interface FileRouteTypes {
     | '/mentorship'
     | '/_authenticated/admin'
     | '/_authenticated/messages'
+    | '/_authenticated/nexus'
     | '/_authenticated/profile'
     | '/_authenticated/requests'
     | '/alumni/$id'
@@ -315,6 +327,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMessagesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/nexus': {
+      id: '/_authenticated/nexus'
+      path: '/nexus'
+      fullPath: '/nexus'
+      preLoaderRoute: typeof AuthenticatedNexusRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/profile': {
       id: '/_authenticated/profile'
       path: '/profile'
@@ -349,6 +368,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedMessagesRoute: typeof AuthenticatedMessagesRoute
+  AuthenticatedNexusRoute: typeof AuthenticatedNexusRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedRequestsRoute: typeof AuthenticatedRequestsRoute
 }
@@ -356,6 +376,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedMessagesRoute: AuthenticatedMessagesRoute,
+  AuthenticatedNexusRoute: AuthenticatedNexusRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedRequestsRoute: AuthenticatedRequestsRoute,
 }
