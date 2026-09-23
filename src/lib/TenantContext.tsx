@@ -12,33 +12,30 @@ export interface Tenant {
 interface TenantContextType {
   tenant: Tenant | null;
   loading: boolean;
-  setTenantSlug: (slug: string) => void;
 }
 
 const TenantContext = createContext<TenantContextType>({
   tenant: null,
   loading: true,
-  setTenantSlug: () => {},
 });
+
+function tenantSlugFromHost(hostname: string) {
+  const parts = hostname.split(".");
+  // Local development and a bare production domain use the default tenant.
+  // Hosted university instances use a subdomain, e.g. northbridge.example.com.
+  return hostname === "localhost" || parts.length < 3 ? "default" : parts[0];
+}
 
 export function TenantProvider({ children }: { children: React.ReactNode }) {
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // In a real production app, we would derive the slug from window.location.hostname
-  // For this local environment, we'll read from localStorage or default to 'default'
   const loadTenant = async (slug: string) => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("tenants")
-      .select("*")
-      .eq("slug", slug)
-      .single();
+    const { data, error } = await supabase.from("tenants").select("*").eq("slug", slug).single();
 
     if (!error && data) {
       setTenant(data as Tenant);
-      localStorage.setItem("alumniconnect_tenant", slug);
-      
       // Update CSS variables for theme color
       if (data.theme_color) {
         document.documentElement.style.setProperty("--primary", data.theme_color);
@@ -50,15 +47,10 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    const savedSlug = localStorage.getItem("alumniconnect_tenant") || "default";
-    loadTenant(savedSlug);
+    void loadTenant(tenantSlugFromHost(window.location.hostname));
   }, []);
 
-  return (
-    <TenantContext.Provider value={{ tenant, loading, setTenantSlug: loadTenant }}>
-      {children}
-    </TenantContext.Provider>
-  );
+  return <TenantContext.Provider value={{ tenant, loading }}>{children}</TenantContext.Provider>;
 }
 
 export function useTenant() {

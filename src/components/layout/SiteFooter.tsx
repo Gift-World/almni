@@ -52,7 +52,7 @@ export function SiteFooter() {
         </div>
       </div>
       <div className="border-t border-border py-6 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} AlumniConnect. A demo alumni platform.
+        © {new Date().getFullYear()} AlumniConnect. The global university opportunity network.
       </div>
     </footer>
   );

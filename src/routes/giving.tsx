@@ -1,26 +1,14 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { CreditCard, Heart, Sparkles } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
+import { Heart, ShieldCheck, Sparkles } from "lucide-react";
 
 import { EmptyState } from "@/components/EmptyState";
 import { PageShell } from "@/components/layout/PageShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/auth";
 import { exactMoney, money } from "@/lib/format";
 
 export const Route = createFileRoute("/giving")({
@@ -43,10 +31,6 @@ export const Route = createFileRoute("/giving")({
 });
 
 function GivingPage() {
-  const { session, profile } = useAuth();
-  const queryClient = useQueryClient();
-  const [openCampaign, setOpenCampaign] = useState<string | null>(null);
-
   const campaigns = useQuery({
     queryKey: ["campaigns"],
     queryFn: async () => {
@@ -73,34 +57,10 @@ function GivingPage() {
     },
   });
 
-  const donate = useMutation({
-    mutationFn: async ({ campaignId, form }: { campaignId: string; form: FormData }) => {
-      const amount = Math.round(Number(form.get("amount")) * 100);
-      if (!amount || amount <= 0) throw new Error("Enter an amount");
-      const anonymous = form.get("anonymous") === "on";
-      const { error } = await supabase.from("donations").insert({
-        campaign_id: campaignId,
-        donor_profile_id: profile?.id ?? null,
-        donor_name: anonymous ? null : (profile?.full_name ?? String(form.get("donor_name"))),
-        amount_cents: amount,
-        is_anonymous: anonymous,
-        message: String(form.get("message")) || null,
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Thank you — your gift was recorded (demo payment)");
-      setOpenCampaign(null);
-      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
-      queryClient.invalidateQueries({ queryKey: ["donor-wall"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
   return (
     <PageShell
       title="Giving"
-      subtitle="Every campaign below funds students directly. Payments are a demo flow — no card is charged."
+      subtitle="Campaign progress and recognised giving from the university advancement office."
     >
       {campaigns.isLoading ? (
         <div className="grid gap-4 lg:grid-cols-3">
@@ -131,13 +91,19 @@ function GivingPage() {
                   <div className="mt-5">
                     <div className="flex items-baseline justify-between text-sm">
                       <span className="font-display text-xl font-bold">{money(raised)}</span>
-                      <span className="text-muted-foreground">of {money(Number(c.goal_cents))}</span>
+                      <span className="text-muted-foreground">
+                        of {money(Number(c.goal_cents))}
+                      </span>
                     </div>
                     <Progress value={pct} className="mt-2" />
                     <p className="mt-2 text-xs text-muted-foreground">{pct}% funded</p>
                   </div>
-                  <Button className="mt-4" onClick={() => setOpenCampaign(c.id)}>
-                    <Heart className="size-4" /> Give to this fund
+                  <Button
+                    className="mt-4"
+                    disabled
+                    title="A verified payment provider must be connected before gifts can be accepted."
+                  >
+                    <ShieldCheck className="size-4" /> Online giving coming soon
                   </Button>
                 </div>
               </article>
@@ -184,56 +150,6 @@ function GivingPage() {
           )}
         </div>
       </section>
-
-      <Dialog open={!!openCampaign} onOpenChange={(o) => !o && setOpenCampaign(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Make a gift</DialogTitle>
-            <DialogDescription>
-              This is a demo checkout — a Stripe payment would appear here in production.
-            </DialogDescription>
-          </DialogHeader>
-          {!session ? (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">Sign in to have your gift recognised.</p>
-              <Button asChild className="w-full">
-                <Link to="/auth">Sign in</Link>
-              </Button>
-            </div>
-          ) : (
-            <form
-              className="space-y-4"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (!openCampaign) return;
-                donate.mutate({ campaignId: openCampaign, form: new FormData(e.currentTarget) });
-              }}
-            >
-              <div className="flex gap-2">
-                {[25, 100, 500].map((amt) => (
-                  <Badge key={amt} variant="outline" className="px-3 py-1">
-                    ${amt}
-                  </Badge>
-                ))}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="amount">Amount (USD)</Label>
-                <Input id="amount" name="amount" type="number" min={1} defaultValue={100} required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="d-message">Message (optional)</Label>
-                <Input id="d-message" name="message" placeholder="Why you're giving" />
-              </div>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" name="anonymous" className="size-4" /> Give anonymously
-              </label>
-              <Button type="submit" className="w-full" disabled={donate.isPending}>
-                <CreditCard className="size-4" /> Complete demo payment
-              </Button>
-            </form>
-          )}
-        </DialogContent>
-      </Dialog>
     </PageShell>
   );
 }
