@@ -15,6 +15,7 @@ import { SiteHeader } from "@/components/layout/SiteHeader";
 import { AuthProvider } from "@/lib/auth";
 import { ThemeProvider } from "@/lib/theme";
 import { TenantProvider } from "@/lib/TenantContext";
+import { WorkspaceProvider } from "@/lib/workspace";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -91,13 +92,24 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "Verified alumni directory, job board, mentorship matching, events and giving — all in one place.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:title", content: "AlumniConnect — Your university network, still working for you" },
-      { property: "og:description", content: "Verified alumni directory, job board, mentorship matching, events and giving — all in one place." },
+      {
+        property: "og:title",
+        content: "AlumniConnect — Your university network, still working for you",
+      },
+      {
+        property: "og:description",
+        content:
+          "Verified alumni directory, job board, mentorship matching, events and giving — all in one place.",
+      },
       { property: "og:image", content: "/og-image.jpg" },
       { property: "og:url", content: "https://alumniconnect.app" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "AlumniConnect" },
-      { name: "twitter:description", content: "Verified alumni directory, job board, mentorship matching, events and giving — all in one place." },
+      {
+        name: "twitter:description",
+        content:
+          "Verified alumni directory, job board, mentorship matching, events and giving — all in one place.",
+      },
       { name: "twitter:image", content: "/og-image.jpg" },
     ],
     links: [
@@ -139,15 +151,17 @@ function RootComponent() {
       <TenantProvider>
         <ThemeProvider>
           <AuthProvider>
-            <div className="flex min-h-screen flex-col bg-background text-foreground overflow-x-hidden">
-              <SiteHeader />
-              <main className="flex-1">
-                {/* Required: nested routes render here. */}
-                <Outlet />
-              </main>
-              <SiteFooter />
-            </div>
-            <Toaster richColors position="top-center" />
+            <WorkspaceProvider>
+              <div className="flex min-h-screen flex-col bg-background text-foreground overflow-x-hidden">
+                <SiteHeader />
+                <main className="flex-1">
+                  {/* Required: nested routes render here. */}
+                  <Outlet />
+                </main>
+                <SiteFooter />
+              </div>
+              <Toaster richColors position="top-center" />
+            </WorkspaceProvider>
           </AuthProvider>
         </ThemeProvider>
       </TenantProvider>

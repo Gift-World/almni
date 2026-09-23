@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
-import { useTenant } from "@/lib/TenantContext";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -33,7 +32,6 @@ export const Route = createFileRoute("/auth")({
 function AuthPage() {
   const navigate = useNavigate();
   const { session } = useAuth();
-  const { tenant } = useTenant();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -66,7 +64,15 @@ function AuthPage() {
     const { data, error } = await supabase.auth.signUp({
       email,
       password: String(form.get("password")),
-      options: { emailRedirectTo: window.location.origin },
+      options: {
+        emailRedirectTo: window.location.origin,
+        data: {
+          full_name: String(form.get("full_name")),
+          degree: String(form.get("degree")),
+          grad_year: Number(form.get("grad_year")),
+          is_student: form.get("kind") === "student",
+        },
+      },
     });
     if (error) {
       setLoading(false);
@@ -75,20 +81,7 @@ function AuthPage() {
     }
 
     if (data.session?.user) {
-      const { error: profileError } = await supabase.from("profiles").insert({
-        user_id: data.session.user.id,
-        tenant_id: tenant?.id || '00000000-0000-0000-0000-000000000001',
-        full_name: String(form.get("full_name")),
-        email,
-        degree: String(form.get("degree")),
-        grad_year: Number(form.get("grad_year")),
-        is_student: form.get("kind") === "student",
-      });
       setLoading(false);
-      if (profileError) {
-        toast.error(profileError.message);
-        return;
-      }
       toast.success("Account created — your profile is awaiting verification");
       navigate({ to: "/profile" });
       return;

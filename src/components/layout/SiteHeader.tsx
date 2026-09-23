@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { GraduationCap, Menu, Moon, Sun, BadgeCheck } from "lucide-react";
+import { GraduationCap, Menu, Moon, Sun, BadgeCheck, Building2, UserRound } from "lucide-react";
 import { useState } from "react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -18,23 +18,27 @@ import { useAuth } from "@/lib/auth";
 import { initials } from "@/lib/format";
 import { useTheme } from "@/lib/theme";
 import { useTenant } from "@/lib/TenantContext";
+import { useWorkspace } from "@/lib/workspace";
 
 const NAV = [
-  { to: "/nexus", label: "Nexus Copilot" },
   { to: "/alumni", label: "Directory" },
   { to: "/businesses", label: "Businesses" },
   { to: "/feed", label: "Feed" },
   { to: "/map", label: "Map" },
+  { to: "/chapters", label: "Chapters" },
   { to: "/jobs", label: "Jobs" },
   { to: "/mentorship", label: "Mentorship" },
   { to: "/events", label: "Events" },
   { to: "/giving", label: "Giving" },
 ] as const;
 
+const STAFF_NAV = [{ to: "/admin", label: "Command center" }] as const;
+
 export function SiteHeader() {
   const { session, profile, isAdmin } = useAuth();
   const { theme, toggle } = useTheme();
-  const { tenant, setTenantSlug } = useTenant();
+  const { tenant } = useTenant();
+  const { mode, setMode } = useWorkspace();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -49,27 +53,23 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="flex items-center gap-2 font-display text-lg font-bold px-2 hover:bg-transparent">
-              <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <GraduationCap className="size-5" />
-              </span>
-              {tenant?.name || "AlumniConnect"}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            <DropdownMenuItem onClick={() => setTenantSlug('default')}>
-              Default University
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setTenantSlug('stanford')}>
-              Stanford Demo (Requires DB entry)
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Link
+          to="/"
+          className="flex items-center gap-2 rounded-md px-2 font-display text-lg font-bold transition-colors hover:bg-secondary"
+        >
+          <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <GraduationCap className="size-5" />
+          </span>
+          {tenant?.name || "AlumniConnect"}
+        </Link>
 
         <nav className="hidden flex-1 items-center gap-1 md:flex">
-          {NAV.map((item) => (
+          {(mode === "staff"
+            ? STAFF_NAV
+            : session
+              ? [{ to: "/nexus" as const, label: "Nexus" }, ...NAV]
+              : NAV
+          ).map((item) => (
             <Link
               key={item.to}
               to={item.to}
@@ -124,8 +124,21 @@ export function SiteHeader() {
                   <Link to="/messages">Direct Messages</Link>
                 </DropdownMenuItem>
                 {isAdmin ? (
-                  <DropdownMenuItem asChild>
-                    <Link to="/admin">Admin dashboard</Link>
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setMode(mode === "staff" ? "member" : "staff");
+                      if (mode !== "staff") navigate({ to: "/admin" });
+                    }}
+                  >
+                    {mode === "staff" ? (
+                      <>
+                        <UserRound className="mr-2 size-4" /> Switch to alumni view
+                      </>
+                    ) : (
+                      <>
+                        <Building2 className="mr-2 size-4" /> Switch to staff workspace
+                      </>
+                    )}
                   </DropdownMenuItem>
                 ) : null}
                 <DropdownMenuSeparator />
@@ -146,7 +159,12 @@ export function SiteHeader() {
             </SheetTrigger>
             <SheetContent side="right" className="w-64 p-6">
               <nav className="mt-8 flex flex-col gap-1">
-                {NAV.map((item) => (
+                {(mode === "staff"
+                  ? STAFF_NAV
+                  : session
+                    ? [{ to: "/nexus" as const, label: "Nexus" }, ...NAV]
+                    : NAV
+                ).map((item) => (
                   <Link
                     key={item.to}
                     to={item.to}

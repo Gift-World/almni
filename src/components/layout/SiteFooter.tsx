@@ -23,6 +23,11 @@ export function SiteFooter() {
                 Find a mentor
               </Link>
             </li>
+            <li>
+              <Link to="/chapters" className="hover:text-foreground">
+                Global chapters
+              </Link>
+            </li>
           </ul>
         </div>
         <div className="text-sm">
@@ -52,7 +57,7 @@ export function SiteFooter() {
         </div>
       </div>
       <div className="border-t border-border py-6 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} AlumniConnect. A demo alumni platform.
+        © {new Date().getFullYear()} AlumniConnect. The global university opportunity network.
       </div>
     </footer>
   );

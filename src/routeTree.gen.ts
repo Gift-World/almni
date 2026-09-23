@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as BusinessesRouteImport } from './routes/businesses'
+import { Route as ChaptersRouteImport } from './routes/chapters'
 import { Route as EventsRouteImport } from './routes/events'
 import { Route as FeedRouteImport } from './routes/feed'
 import { Route as GivingRouteImport } from './routes/giving'
@@ -44,6 +45,11 @@ const AuthRoute = AuthRouteImport.update({
 const BusinessesRoute = BusinessesRouteImport.update({
   id: '/businesses',
   path: '/businesses',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChaptersRoute = ChaptersRouteImport.update({
+  id: '/chapters',
+  path: '/chapters',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EventsRoute = EventsRouteImport.update({
@@ -116,6 +122,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/businesses': typeof BusinessesRoute
+  '/chapters': typeof ChaptersRoute
   '/events': typeof EventsRoute
   '/feed': typeof FeedRoute
   '/giving': typeof GivingRoute
@@ -134,6 +141,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/businesses': typeof BusinessesRoute
+  '/chapters': typeof ChaptersRoute
   '/events': typeof EventsRoute
   '/feed': typeof FeedRoute
   '/giving': typeof GivingRoute
@@ -154,6 +162,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/businesses': typeof BusinessesRoute
+  '/chapters': typeof ChaptersRoute
   '/events': typeof EventsRoute
   '/feed': typeof FeedRoute
   '/giving': typeof GivingRoute
@@ -174,6 +183,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/businesses'
+    | '/chapters'
     | '/events'
     | '/feed'
     | '/giving'
@@ -192,6 +202,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/businesses'
+    | '/chapters'
     | '/events'
     | '/feed'
     | '/giving'
@@ -211,6 +222,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/businesses'
+    | '/chapters'
     | '/events'
     | '/feed'
     | '/giving'
@@ -231,6 +243,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   BusinessesRoute: typeof BusinessesRoute
+  ChaptersRoute: typeof ChaptersRoute
   EventsRoute: typeof EventsRoute
   FeedRoute: typeof FeedRoute
   GivingRoute: typeof GivingRoute
@@ -269,6 +282,13 @@ declare module '@tanstack/react-router' {
       path: '/businesses'
       fullPath: '/businesses'
       preLoaderRoute: typeof BusinessesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chapters': {
+      id: '/chapters'
+      path: '/chapters'
+      fullPath: '/chapters'
+      preLoaderRoute: typeof ChaptersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/events': {
@@ -389,6 +409,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   BusinessesRoute: BusinessesRoute,
+  ChaptersRoute: ChaptersRoute,
   EventsRoute: EventsRoute,
   FeedRoute: FeedRoute,
   GivingRoute: GivingRoute,
