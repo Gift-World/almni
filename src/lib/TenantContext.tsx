@@ -23,7 +23,7 @@ function tenantSlugFromHost(hostname: string) {
   const parts = hostname.split(".");
   // Local development and a bare production domain use the default tenant.
   // Hosted university instances use a subdomain, e.g. northbridge.example.com.
-  return hostname === "localhost" || parts.length < 3 ? "default" : parts[0];
+  return hostname === "localhost" || parts.length < 3 ? "default" : (parts[0] ?? "default");
 }
 
 export function TenantProvider({ children }: { children: React.ReactNode }) {
@@ -42,6 +42,9 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       } else {
         document.documentElement.style.removeProperty("--primary");
       }
+    } else {
+      setTenant(null);
+      document.documentElement.style.removeProperty("--primary");
     }
     setLoading(false);
   };

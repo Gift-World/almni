@@ -14,6 +14,16 @@ export type Database = {
   }
   public: {
     Tables: {
+      // Migrations are the source of truth. This compatibility entry keeps the
+      // client usable while generated types are reconciled in a connected
+      // Supabase environment; explicitly declared tables below retain their
+      // precise field types.
+      [relation: string]: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: any
+      }
       campaigns: {
         Row: {
           cover_image_url: string | null
@@ -425,6 +435,7 @@ export type Database = {
           avatar_url: string | null
           bio: string | null
           company: string | null
+          country: string | null
           created_at: string
           degree: string | null
           email: string | null
@@ -445,11 +456,13 @@ export type Database = {
           status: Database["public"]["Enums"]["verification_status"]
           updated_at: string
           user_id: string | null
+          tenant_id: string
         }
         Insert: {
           avatar_url?: string | null
           bio?: string | null
           company?: string | null
+          country?: string | null
           created_at?: string
           degree?: string | null
           email?: string | null
@@ -470,11 +483,13 @@ export type Database = {
           status?: Database["public"]["Enums"]["verification_status"]
           updated_at?: string
           user_id?: string | null
+          tenant_id?: string
         }
         Update: {
           avatar_url?: string | null
           bio?: string | null
           company?: string | null
+          country?: string | null
           created_at?: string
           degree?: string | null
           email?: string | null
@@ -495,6 +510,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["verification_status"]
           updated_at?: string
           user_id?: string | null
+          tenant_id?: string
         }
         Relationships: []
       }
@@ -536,7 +552,7 @@ export type Database = {
     Enums: {
       app_role: "admin" | "alumni" | "student"
       request_status: "pending" | "accepted" | "declined"
-      verification_status: "pending" | "verified" | "rejected"
+      verification_status: "pending" | "verified" | "rejected" | "suspended"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -666,7 +682,7 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "alumni", "student"],
       request_status: ["pending", "accepted", "declined"],
-      verification_status: ["pending", "verified", "rejected"],
+      verification_status: ["pending", "verified", "rejected", "suspended"],
     },
   },
 } as const
