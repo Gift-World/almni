@@ -71,3 +71,33 @@ This project is connected to [Lovable](https://lovable.dev/projects/9268b0b5-202
 npm i
 npm run dev
 ```
+
+## Production deployment
+
+This application builds as a **Cloudflare Worker**. The generated worker bundle is
+written to `.output/`; it is not a static Vite `dist/` site and should not be
+deployed using a stale Vercel alias.
+
+1. Create a Cloudflare Worker project connected to this GitHub repository.
+2. In the Worker build settings, run `npm run build`.
+3. Deploy the generated `.output/` worker bundle. The build output includes the
+   Nitro deployment metadata required by Wrangler/Cloudflare.
+4. Set these deployment environment variables for every environment:
+   `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_URL`, and
+   `SUPABASE_PUBLISHABLE_KEY`.
+5. Apply the SQL migrations in `supabase/migrations/` through the approved
+   Supabase migration process before enabling the production URL.
+
+Copy `.env.example` to `.env` for local development. `.env` is deliberately
+ignored and must never contain a service-role or other privileged credential.
+
+### Release gates
+
+Before promoting a release, require all of the following:
+
+- `npm run build` succeeds.
+- The production Supabase environment has the matching migrations applied.
+- Sign-in, member view, authorized staff view, chapter membership, and event
+  RSVP/outcome flows have been tested in the deployed environment.
+- The deployment URL is verified before it is added to the GitHub repository's
+  Website field.
