@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { BadgeCheck, Clock, UserCog } from "lucide-react";
+import { BadgeCheck, Clock, Download, ShieldCheck, Trash2, UserCog } from "lucide-react";
 import { toast } from "sonner";
 
 import { PageShell } from "@/components/layout/PageShell";
@@ -34,6 +34,57 @@ export const Route = createFileRoute("/_authenticated/profile")({
 function MyProfile() {
   const { profile, profileLoading, session, refreshProfile } = useAuth();
   const queryClient = useQueryClient();
+  const privacyRequest = useMutation({
+    mutationFn: async (request_type: "export" | "delete") => {
+      if (!profile) throw new Error("Complete your profile before making a privacy request");
+      const { error } = await supabase.from("privacy_requests").insert({
+        profile_id: profile.id,
+        request_type,
+      });
+      if (error) throw error;
+    },
+    onSuccess: (_, request_type) =>
+      toast.success(
+        request_type === "export"
+          ? "Your data export request has been sent to the university."
+          : "Your deletion request has been sent for review.",
+      ),
+    onError: (error: Error) => toast.error(error.message),
+  });
+  const preferences = useQuery({
+    queryKey: ["communication-preferences", profile?.id], enabled: !!profile,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("communication_preferences").select("*").eq("profile_id", profile!.id).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+  const updatePreference = useMutation({
+    mutationFn: async ({ key, granted }: { key: "event_updates" | "opportunity_updates" | "chapter_updates" | "marketing_updates"; granted: boolean }) => {
+      if (!profile) throw new Error("Complete your profile before changing communication preferences");
+      const current = preferences.data;
+      const { error } = await supabase.from("communication_preferences").upsert({
+        profile_id: profile.id,
+        event_updates: current?.event_updates ?? true,
+        opportunity_updates: current?.opportunity_updates ?? true,
+        chapter_updates: current?.chapter_updates ?? true,
+        marketing_updates: current?.marketing_updates ?? false,
+        [key]: granted,
+      });
+      if (error) throw error;
+      const { error: consentError } = await supabase.from("communication_consent_events").insert({
+        profile_id: profile.id,
+        preference_key: key,
+        granted,
+      });
+      if (consentError) throw consentError;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["communication-preferences", profile?.id] });
+      toast.success("Communication preference updated.");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
 
   const stats = useQuery({
     queryKey: ["my-connections", profile?.id],
@@ -224,6 +275,60 @@ function MyProfile() {
           <Button type="submit" disabled={save.isPending}>
             {save.isPending ? "Saving…" : "Save profile"}
           </Button>
+
+          {profile ? (
+            <section className="space-y-3 border-t border-border pt-5">
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <ShieldCheck className="size-4" /> Privacy & data rights
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Requests are reviewed by the university privacy team and recorded in the audit trail.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={privacyRequest.isPending}
+                  onClick={() => privacyRequest.mutate("export")}
+                >
+                  <Download className="size-4" /> Request my data export
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={privacyRequest.isPending}
+                  onClick={() => privacyRequest.mutate("delete")}
+                >
+                  <Trash2 className="size-4" /> Request account deletion
+                </Button>
+              </div>
+            </section>
+          ) : null}
+          {profile ? (
+            <section className="space-y-3 border-t border-border pt-5">
+              <h3 className="text-sm font-semibold">Communication preferences</h3>
+              <p className="text-sm text-muted-foreground">Choose the updates you want to receive. Every change is recorded with your consent history.</p>
+              {([
+                ["event_updates", "Events and reunions", "Invitations, reminders, and follow-up from events."],
+                ["opportunity_updates", "Career and mentoring opportunities", "Jobs, mentoring requests, and professional opportunities."],
+                ["chapter_updates", "Chapter and regional updates", "News and gatherings from your local or global chapter."],
+                ["marketing_updates", "University news and campaigns", "Institution-wide stories, initiatives, and fundraising campaigns."],
+              ] as const).map(([key, label, description]) => (
+                <label key={key} className="flex items-center justify-between gap-4 rounded-lg border border-border p-3">
+                  <span>
+                    <span className="block text-sm font-medium">{label}</span>
+                    <span className="block text-sm text-muted-foreground">{description}</span>
+                  </span>
+                  <Switch
+                    checked={preferences.data?.[key] ?? (key !== "marketing_updates")}
+                    disabled={preferences.isLoading || updatePreference.isPending}
+                    onCheckedChange={(granted) => updatePreference.mutate({ key, granted })}
+                    aria-label={label}
+                  />
+                </label>
+              ))}
+            </section>
+          ) : null}
         </form>
       </div>
     </PageShell>

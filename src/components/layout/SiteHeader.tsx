@@ -35,7 +35,7 @@ const NAV = [
 const STAFF_NAV = [{ to: "/admin", label: "Command center" }] as const;
 
 export function SiteHeader() {
-  const { session, profile, isAdmin } = useAuth();
+  const { session, profile, hasStaffAccess } = useAuth();
   const { theme, toggle } = useTheme();
   const { tenant } = useTenant();
   const { mode, setMode } = useWorkspace();
@@ -123,7 +123,7 @@ export function SiteHeader() {
                 <DropdownMenuItem asChild>
                   <Link to="/messages">Direct Messages</Link>
                 </DropdownMenuItem>
-                {isAdmin ? (
+                {hasStaffAccess ? (
                   <DropdownMenuItem
                     onSelect={() => {
                       setMode(mode === "staff" ? "member" : "staff");

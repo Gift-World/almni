@@ -15,11 +15,11 @@ const WorkspaceContext = createContext<WorkspaceValue>({
 });
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
-  const { isAdmin } = useAuth();
+  const { hasStaffAccess } = useAuth();
   const [mode, setMode] = useState<WorkspaceMode>("member");
 
   useEffect(() => {
-    if (!isAdmin) {
+    if (!hasStaffAccess) {
       setMode("member");
       return;
     }
@@ -27,10 +27,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (window.localStorage.getItem("alumniconnect_workspace_mode") === "staff") {
       setMode("staff");
     }
-  }, [isAdmin]);
+  }, [hasStaffAccess]);
 
   function updateMode(nextMode: WorkspaceMode) {
-    if (nextMode === "staff" && !isAdmin) return;
+    if (nextMode === "staff" && !hasStaffAccess) return;
     setMode(nextMode);
     window.localStorage.setItem("alumniconnect_workspace_mode", nextMode);
   }

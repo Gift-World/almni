@@ -1,0 +1,12 @@
+{
+  "name": "AlumniConnect",
+  "short_name": "AlumniConnect",
+  "description": "Your verified university alumni network.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b1020",
+  "theme_color": "#0b1020",
+  "icons": [
+    { "src": "/favicon.png", "sizes": "any", "type": "image/png", "purpose": "any" }
+  ]
+}

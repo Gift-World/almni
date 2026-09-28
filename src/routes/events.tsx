@@ -52,7 +52,10 @@ type EventRow = {
   is_virtual: boolean;
   cover_image_url: string | null;
   starts_at: string;
+  capacity?: number | null;
+  waitlist_enabled?: boolean;
 };
+type EventWithRsvps = EventRow & { event_rsvps: { profile_id: string; status?: string | null }[] };
 
 function EventsPage() {
   const { session, profile } = useAuth();
@@ -62,33 +65,43 @@ function EventsPage() {
   const events = useQuery({
     queryKey: ["events"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("events")
-        .select("*, event_rsvps(profile_id)")
+      // Event-operation columns are introduced by the accompanying migration; keep this
+      // boundary isolated until Supabase types are regenerated after deployment.
+      const { data, error } = await (supabase.from("events") as any)
+        .select("*, event_rsvps(profile_id, status)")
         .order("starts_at", { ascending: true });
       if (error) throw error;
-      return data;
+      return (data ?? []) as EventWithRsvps[];
     },
   });
 
   const rsvp = useMutation({
-    mutationFn: async ({ eventId, going }: { eventId: string; going: boolean }) => {
+    mutationFn: async ({ event, going }: { event: EventWithRsvps; going: boolean }) => {
       if (!profile) throw new Error("Create your profile first");
       if (going) {
         const { error } = await supabase
           .from("event_rsvps")
           .delete()
-          .eq("event_id", eventId)
+          .eq("event_id", event.id)
           .eq("profile_id", profile.id);
         if (error) throw error;
+        return undefined;
       } else {
-        const { error } = await supabase
-          .from("event_rsvps")
-          .insert({ event_id: eventId, profile_id: profile.id });
+        const registered = event.event_rsvps.filter((item) => !item.status || item.status === "registered").length;
+        const shouldWaitlist = !!event.capacity && registered >= event.capacity;
+        if (shouldWaitlist && !event.waitlist_enabled) {
+          throw new Error("This event is now full.");
+        }
+        const { error } = await (supabase.from("event_rsvps") as any)
+          .insert({ event_id: event.id, profile_id: profile.id, ...(shouldWaitlist ? { status: "waitlisted" } : {}) });
         if (error) throw error;
+        return shouldWaitlist ? "waitlisted" : "registered";
       }
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["events"] }),
+    onSuccess: (result) => {
+      void queryClient.invalidateQueries({ queryKey: ["events"] });
+      if (result === "waitlisted") toast.success("You’ve joined the waitlist. We’ll notify you if a place opens.");
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -107,7 +120,7 @@ function EventsPage() {
   const createEvent = useMutation({
     mutationFn: async (form: FormData) => {
       if (!profile) throw new Error("Create your profile first");
-      const { error } = await supabase.from("events").insert({
+      const { error } = await (supabase.from("events") as any).insert({
         created_by: profile.id,
         title: String(form.get("title")),
         description: String(form.get("description")),
@@ -115,6 +128,8 @@ function EventsPage() {
         location: String(form.get("location")),
         is_virtual: form.get("is_virtual") === "on",
         starts_at: new Date(String(form.get("starts_at"))).toISOString(),
+        capacity: Number(form.get("capacity")) || null,
+        waitlist_enabled: form.get("waitlist_enabled") === "on",
       });
       if (error) throw error;
     },
@@ -137,10 +152,13 @@ function EventsPage() {
     event,
     isPast,
   }: {
-    event: EventRow & { event_rsvps: { profile_id: string }[] };
+    event: EventWithRsvps;
     isPast?: boolean;
   }) {
-    const going = !!profile && event.event_rsvps.some((r) => r.profile_id === profile.id);
+    const myRsvp = profile ? event.event_rsvps.find((r) => r.profile_id === profile.id) : undefined;
+    const going = !!myRsvp;
+    const onWaitlist = myRsvp?.status === "waitlisted";
+    const registered = event.event_rsvps.filter((r) => !r.status || r.status === "registered").length;
     return (
       <article className="card-surface card-interactive flex flex-col overflow-hidden">
         {event.cover_image_url ? (
@@ -170,6 +188,12 @@ function EventsPage() {
               <MapPin className="size-3.5" /> {event.location}
             </p>
           ) : null}
+          {event.capacity ? (
+            <p className="mt-1 text-sm text-muted-foreground">
+              {registered} of {event.capacity} places filled
+              {event.waitlist_enabled ? " · waitlist available" : ""}
+            </p>
+          ) : null}
           <p className="mt-3 line-clamp-3 flex-1 text-sm text-muted-foreground">
             {event.description}
           </p>
@@ -193,12 +217,12 @@ function EventsPage() {
               <Button
                 size="sm"
                 variant={going ? "secondary" : "default"}
-                onClick={() => rsvp.mutate({ eventId: event.id, going })}
+                onClick={() => rsvp.mutate({ event, going })}
                 disabled={rsvp.isPending}
               >
                 {going ? (
                   <>
-                    <Check className="size-4" /> Going
+                    <Check className="size-4" /> {onWaitlist ? "Leave waitlist" : "Going"}
                   </>
                 ) : (
                   "RSVP"
@@ -309,6 +333,15 @@ function EventsPage() {
             <div className="space-y-2">
               <Label htmlFor="e-location">Location</Label>
               <Input id="e-location" name="location" required />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="e-capacity">Capacity (optional)</Label>
+                <Input id="e-capacity" name="capacity" type="number" min="1" placeholder="Unlimited" />
+              </div>
+              <label className="flex items-end gap-2 pb-2 text-sm">
+                <input type="checkbox" name="waitlist_enabled" className="size-4" /> Enable waitlist
+              </label>
             </div>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" name="is_virtual" className="size-4" /> This is an online event

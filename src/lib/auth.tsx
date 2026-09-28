@@ -13,6 +13,8 @@ type AuthValue = {
   profile: Profile | null;
   profileLoading: boolean;
   isAdmin: boolean;
+  staffRoles: string[];
+  hasStaffAccess: boolean;
   refreshProfile: () => void;
 };
 
@@ -22,6 +24,8 @@ const AuthContext = createContext<AuthValue>({
   profile: null,
   profileLoading: false,
   isAdmin: false,
+  staffRoles: [],
+  hasStaffAccess: false,
   refreshProfile: () => {},
 });
 
@@ -49,13 +53,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryKey: ["me", userId],
     enabled: !!userId,
     queryFn: async () => {
-      const [profileRes, rolesRes] = await Promise.all([
+      const [profileRes, rolesRes, staffRolesRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("user_id", userId!).maybeSingle(),
         supabase.from("user_roles").select("role").eq("user_id", userId!),
+        supabase.from("staff_role_assignments").select("role").eq("user_id", userId!),
       ]);
       return {
         profile: profileRes.data ?? null,
         isAdmin: (rolesRes.data ?? []).some((r) => r.role === "admin"),
+        staffRoles: ((staffRolesRes.data ?? []) as Array<{ role: string }>).map(
+          (assignment) => assignment.role,
+        ),
       };
     },
   });
@@ -68,6 +76,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profile: data?.profile ?? null,
         profileLoading: !!userId && profileLoading,
         isAdmin: data?.isAdmin ?? false,
+        staffRoles: data?.staffRoles ?? [],
+        hasStaffAccess: (data?.isAdmin ?? false) || (data?.staffRoles.length ?? 0) > 0,
         refreshProfile: () => queryClient.invalidateQueries({ queryKey: ["me"] }),
       }}
     >

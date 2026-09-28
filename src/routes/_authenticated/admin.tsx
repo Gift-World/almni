@@ -12,6 +12,7 @@ import {
   LineChart,
   Mail,
   Database,
+  ShieldCheck,
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
@@ -34,6 +35,8 @@ import { PageShell } from "@/components/layout/PageShell";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -55,9 +58,35 @@ export const Route = createFileRoute("/_authenticated/admin")({
 });
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"];
+type PrivacyQueueItem = {
+  id: string;
+  profile_id: string;
+  request_type: "export" | "delete";
+  status: "pending" | "in_progress" | "completed" | "declined";
+  created_at: string;
+};
+const staffRoles = [
+  ["alumni_relations", "Alumni relations"], ["advancement", "Advancement"],
+  ["careers", "Careers"], ["events", "Events"], ["communications", "Communications"],
+  ["chapter_manager", "Chapter manager"], ["analyst", "Analyst"], ["read_only", "Read-only"],
+] as const;
+const integrationProviders = [
+  ["salesforce", "Salesforce"], ["raisers_edge", "Raiser’s Edge"], ["banner", "Ellucian Banner"],
+  ["workday", "Workday"], ["custom", "Custom SIS / CRM"],
+] as const;
+type IntegrationConnection = {
+  id: string; provider: string; display_name: string; state: "draft" | "active" | "paused" | "error";
+  secret_reference: string | null; last_synced_at: string | null; created_at: string;
+};
+type AiRecommendation = {
+  id: string; profile_id: string; recommendation_type: string; rationale: string;
+  status: "draft" | "pending_approval" | "approved" | "rejected" | "expired"; created_at: string;
+};
+const ssoProviders = [["saml", "SAML 2.0"], ["oidc", "OpenID Connect"], ["azure_ad", "Microsoft Entra ID"], ["google_workspace", "Google Workspace"]] as const;
+type SsoConfiguration = { id: string; provider: string; email_domain: string; display_name: string; issuer_reference: string | null; enabled: boolean };
 
 function AdminPage() {
-  const { isAdmin, profileLoading } = useAuth();
+  const { isAdmin, profileLoading, profile } = useAuth();
   const { mode, setMode } = useWorkspace();
   const queryClient = useQueryClient();
 
@@ -152,6 +181,85 @@ function AdminPage() {
     },
   });
 
+  const operations = useQuery({
+    queryKey: ["admin-operations"],
+    enabled: isAdmin,
+    queryFn: async () => {
+      const [privacy, integrations, audit] = await Promise.all([
+        supabase.from("privacy_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
+        supabase.from("integration_connections").select("id", { count: "exact", head: true }).eq("state", "error"),
+        supabase.from("audit_events").select("id", { count: "exact", head: true }),
+      ]);
+      return { pendingPrivacy: privacy.count ?? 0, integrationErrors: integrations.count ?? 0, auditEvents: audit.count ?? 0 };
+    },
+  });
+
+  const privacyQueue = useQuery({
+    queryKey: ["admin-privacy-queue"],
+    enabled: isAdmin,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("privacy_requests")
+        .select("id, profile_id, request_type, status, created_at")
+        .in("status", ["pending", "in_progress"])
+        .order("created_at", { ascending: true })
+        .limit(20);
+      if (error) throw error;
+      return (data ?? []) as PrivacyQueueItem[];
+    },
+  });
+
+  const staffInvitations = useQuery({
+    queryKey: ["admin-staff-invitations"],
+    enabled: isAdmin,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("staff_invitations") as any)
+        .select("id, email, staff_role, expires_at, accepted_at, created_at")
+        .order("created_at", { ascending: false })
+        .limit(12);
+      if (error) throw error;
+      return (data ?? []) as { id: string; email: string; staff_role: string | null; expires_at: string; accepted_at: string | null; created_at: string }[];
+    },
+  });
+
+  const integrations = useQuery({
+    queryKey: ["admin-integrations"],
+    enabled: isAdmin,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("integration_connections") as any)
+        .select("id, provider, display_name, state, secret_reference, last_synced_at, created_at")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as IntegrationConnection[];
+    },
+  });
+
+  const aiReviewQueue = useQuery({
+    queryKey: ["admin-ai-review-queue"],
+    enabled: isAdmin,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("ai_recommendations") as any)
+        .select("id, profile_id, recommendation_type, rationale, status, created_at")
+        .eq("status", "pending_approval")
+        .order("created_at", { ascending: true })
+        .limit(20);
+      if (error) throw error;
+      return (data ?? []) as AiRecommendation[];
+    },
+  });
+
+  const ssoConfigurations = useQuery({
+    queryKey: ["admin-sso-configurations"],
+    enabled: isAdmin,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("institutional_sso_configurations") as any)
+        .select("id, provider, email_domain, display_name, issuer_reference, enabled")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as SsoConfiguration[];
+    },
+  });
+
   const setStatus = useMutation({
     mutationFn: async ({
       id,
@@ -181,6 +289,92 @@ function AdminPage() {
       queryClient.invalidateQueries({ queryKey: ["admin-jobs"] });
     },
     onError: (e: Error) => toast.error(e.message),
+  });
+
+  const updatePrivacyRequest = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: "in_progress" | "completed" | "declined" }) => {
+      const { error } = await supabase.from("privacy_requests").update({ status }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Privacy request updated");
+      void queryClient.invalidateQueries({ queryKey: ["admin-privacy-queue"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-operations"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const inviteStaff = useMutation({
+    mutationFn: async (form: FormData) => {
+      if (!profile) throw new Error("Your staff profile is still loading");
+      const email = String(form.get("staff_email")).trim().toLowerCase();
+      const staffRole = String(form.get("staff_role"));
+      if (!email || !staffRole) throw new Error("Email and staff responsibility are required");
+      const { error } = await (supabase.from("staff_invitations") as any).upsert({
+        email, role: "admin", staff_role: staffRole, invited_by: profile.id,
+      }, { onConflict: "tenant_id,email" });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Staff invitation recorded with its assigned responsibility.");
+      void queryClient.invalidateQueries({ queryKey: ["admin-staff-invitations"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const createIntegration = useMutation({
+    mutationFn: async (form: FormData) => {
+      const displayName = String(form.get("integration_name")).trim();
+      const provider = String(form.get("integration_provider"));
+      const secretReference = String(form.get("secret_reference")).trim();
+      if (!displayName || !provider) throw new Error("Provider and connection name are required");
+      const { error } = await (supabase.from("integration_connections") as any).insert({
+        provider, display_name: displayName, state: "draft", secret_reference: secretReference || null,
+        field_mapping: { alumni_profile: "profiles", engagement: "event_rsvps" },
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Integration saved as a draft. Add credentials in the deployment secret manager before activation.");
+      void queryClient.invalidateQueries({ queryKey: ["admin-integrations"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const reviewAiRecommendation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: "approved" | "rejected" }) => {
+      if (!profile) throw new Error("Your staff profile is still loading");
+      const { error } = await (supabase.from("ai_recommendations") as any)
+        .update({ status, reviewed_by: profile.id })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Recommendation review recorded.");
+      void queryClient.invalidateQueries({ queryKey: ["admin-ai-review-queue"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const enrollSso = useMutation({
+    mutationFn: async (form: FormData) => {
+      if (!profile) throw new Error("Your staff profile is still loading");
+      const emailDomain = String(form.get("sso_domain")).trim().toLowerCase().replace(/^@/, "");
+      const displayName = String(form.get("sso_name")).trim();
+      const provider = String(form.get("sso_provider"));
+      const issuerReference = String(form.get("sso_issuer_reference")).trim();
+      if (!emailDomain.includes(".") || !displayName) throw new Error("Enter a valid university email domain and connection name");
+      const { error } = await (supabase.from("institutional_sso_configurations") as any).upsert({
+        provider, email_domain: emailDomain, display_name: displayName, issuer_reference: issuerReference || null,
+        enabled: false, created_by: profile.id,
+      }, { onConflict: "tenant_id,email_domain" });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("SSO enrollment saved as a draft. Complete the IdP setup before activation.");
+      void queryClient.invalidateQueries({ queryKey: ["admin-sso-configurations"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
   });
 
   const downloadCSV = () => {
@@ -300,6 +494,9 @@ function AdminPage() {
           </TabsTrigger>
           <TabsTrigger value="communications" className="flex items-center gap-2">
             <Mail className="size-4" /> Communications
+          </TabsTrigger>
+          <TabsTrigger value="operations" className="flex items-center gap-2">
+            <ShieldCheck className="size-4" /> Operations
           </TabsTrigger>
           <TabsTrigger value="queue">
             Queue{pendingUsers.length ? ` (${pendingUsers.length})` : ""}
@@ -436,6 +633,93 @@ function AdminPage() {
               Bulk email is intentionally unavailable until a university-owned delivery provider,
               consent rules, unsubscribe handling, and audit logging are configured.
             </p>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="operations" className="mt-6">
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="card-surface p-5">
+              <h3 className="font-semibold">Staff access</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Invite and assign alumni relations, careers, events, communications and chapter roles.
+              </p>
+            </div>
+            <div className="card-surface p-5">
+              <h3 className="font-semibold">Privacy requests</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {operations.data?.pendingPrivacy ?? "—"} pending export or deletion requests.
+              </p>
+            </div>
+            <div className="card-surface p-5">
+              <h3 className="font-semibold">Integrations</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {operations.data?.integrationErrors ?? "—"} connections need attention · {operations.data?.auditEvents ?? "—"} audit events.
+              </p>
+            </div>
+          </div>
+          <div className="card-surface mt-6 p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="font-semibold">Privacy request queue</h3>
+                <p className="mt-1 text-sm text-muted-foreground">Review requests in a controlled workflow. Completing a request records its resolution timestamp; it never deletes data automatically.</p>
+              </div>
+              <Badge variant="secondary">{privacyQueue.data?.length ?? 0} open</Badge>
+            </div>
+            <div className="mt-4 space-y-3">
+              {privacyQueue.isLoading ? <RowsSkeleton count={2} /> : privacyQueue.data?.length ? privacyQueue.data.map((request) => (
+                <div key={request.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-border p-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium capitalize">{request.request_type} request</p>
+                    <p className="text-xs text-muted-foreground">Received {formatDate(request.created_at)} · Member reference {request.profile_id.slice(0, 8)}</p>
+                  </div>
+                  <Badge variant={request.status === "pending" ? "outline" : "secondary"}>{request.status.replace("_", " ")}</Badge>
+                  {request.status === "pending" ? <Button size="sm" variant="outline" disabled={updatePrivacyRequest.isPending} onClick={() => updatePrivacyRequest.mutate({ id: request.id, status: "in_progress" })}>Start review</Button> : null}
+                  <Button size="sm" disabled={updatePrivacyRequest.isPending} onClick={() => updatePrivacyRequest.mutate({ id: request.id, status: "completed" })}>Mark complete</Button>
+                  <Button size="sm" variant="ghost" disabled={updatePrivacyRequest.isPending} onClick={() => updatePrivacyRequest.mutate({ id: request.id, status: "declined" })}>Decline</Button>
+                </div>
+              )) : <p className="py-4 text-sm text-muted-foreground">No open privacy requests.</p>}
+            </div>
+          </div>
+          <div className="card-surface mt-6 p-5">
+            <h3 className="font-semibold">Invite university staff</h3>
+            <p className="mt-1 text-sm text-muted-foreground">Assign the least-privileged responsibility before staff accept access. The invitation record is ready for the institution’s configured email-delivery service.</p>
+            <form className="mt-4 grid gap-3 md:grid-cols-[1fr_220px_auto]" onSubmit={(event) => { event.preventDefault(); inviteStaff.mutate(new FormData(event.currentTarget)); }}>
+              <div className="space-y-1"><Label htmlFor="staff-email">Staff email</Label><Input id="staff-email" name="staff_email" type="email" placeholder="name@university.edu" required /></div>
+              <div className="space-y-1"><Label htmlFor="staff-role">Responsibility</Label><select id="staff-role" name="staff_role" className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm" defaultValue="alumni_relations">{staffRoles.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
+              <Button className="self-end" type="submit" disabled={inviteStaff.isPending}>Record invitation</Button>
+            </form>
+            {staffInvitations.data?.length ? <div className="mt-5 space-y-2">{staffInvitations.data.map((invite) => <div key={invite.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-sm"><span className="font-medium">{invite.email}</span><span className="text-muted-foreground">{staffRoles.find(([role]) => role === invite.staff_role)?.[1] ?? "Staff"}</span><Badge variant={invite.accepted_at ? "secondary" : "outline"}>{invite.accepted_at ? "Accepted" : "Pending"}</Badge></div>)}</div> : null}
+          </div>
+          <div className="card-surface mt-6 p-5">
+            <h3 className="font-semibold">University single sign-on</h3>
+            <p className="mt-1 text-sm text-muted-foreground">Enroll your institution’s domain and provider. Activation remains disabled until the university identity team configures the corresponding credentials and certificate metadata in the authentication provider.</p>
+            <form className="mt-4 grid gap-3 lg:grid-cols-[180px_1fr_1fr_1fr_auto]" onSubmit={(event) => { event.preventDefault(); enrollSso.mutate(new FormData(event.currentTarget)); }}>
+              <div className="space-y-1"><Label htmlFor="sso-provider">Provider</Label><select id="sso-provider" name="sso_provider" className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm" defaultValue="saml">{ssoProviders.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
+              <div className="space-y-1"><Label htmlFor="sso-domain">Email domain</Label><Input id="sso-domain" name="sso_domain" placeholder="university.edu" required /></div>
+              <div className="space-y-1"><Label htmlFor="sso-name">Connection name</Label><Input id="sso-name" name="sso_name" placeholder="University SSO" required /></div>
+              <div className="space-y-1"><Label htmlFor="sso-issuer">Issuer / config reference</Label><Input id="sso-issuer" name="sso_issuer_reference" placeholder="idp-university-saml" /></div>
+              <Button className="self-end" type="submit" disabled={enrollSso.isPending}>Save draft</Button>
+            </form>
+            {ssoConfigurations.data?.length ? <div className="mt-5 space-y-2">{ssoConfigurations.data.map((config) => <div key={config.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-sm"><span className="font-medium">{config.display_name}</span><span className="text-muted-foreground">@{config.email_domain} · {ssoProviders.find(([provider]) => provider === config.provider)?.[1] ?? config.provider}</span><Badge variant={config.enabled ? "secondary" : "outline"}>{config.enabled ? "Active" : "Draft"}</Badge></div>)}</div> : null}
+          </div>
+          <div className="card-surface mt-6 p-5">
+            <h3 className="font-semibold">CRM and SIS connections</h3>
+            <p className="mt-1 text-sm text-muted-foreground">Register a connection without storing a password, API key, or token in the application database. Credentials belong in the deployment secret manager.</p>
+            <form className="mt-4 grid gap-3 lg:grid-cols-[190px_1fr_1fr_auto]" onSubmit={(event) => { event.preventDefault(); createIntegration.mutate(new FormData(event.currentTarget)); }}>
+              <div className="space-y-1"><Label htmlFor="integration-provider">Provider</Label><select id="integration-provider" name="integration_provider" className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm" defaultValue="salesforce">{integrationProviders.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
+              <div className="space-y-1"><Label htmlFor="integration-name">Connection name</Label><Input id="integration-name" name="integration_name" placeholder="Advancement CRM" required /></div>
+              <div className="space-y-1"><Label htmlFor="integration-secret">Secret reference</Label><Input id="integration-secret" name="secret_reference" placeholder="e.g. SALESFORCE_ADVANCEMENT" /></div>
+              <Button className="self-end" type="submit" disabled={createIntegration.isPending}>Save draft</Button>
+            </form>
+            <div className="mt-5 space-y-2">
+              {integrations.isLoading ? <RowsSkeleton count={2} /> : integrations.data?.length ? integrations.data.map((integration) => <div key={integration.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border px-3 py-2 text-sm"><div><span className="font-medium">{integration.display_name}</span><span className="ml-2 text-muted-foreground">{integrationProviders.find(([provider]) => provider === integration.provider)?.[1] ?? integration.provider}</span></div><span className="text-muted-foreground">{integration.last_synced_at ? `Last sync ${formatDate(integration.last_synced_at)}` : "Not synced yet"}</span><Badge variant={integration.state === "error" ? "destructive" : integration.state === "active" ? "secondary" : "outline"}>{integration.state}</Badge></div>) : <p className="py-3 text-sm text-muted-foreground">No CRM or SIS connections registered yet.</p>}
+            </div>
+          </div>
+          <div className="card-surface mt-6 p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="font-semibold">AI concierge review queue</h3><p className="mt-1 text-sm text-muted-foreground">The concierge can suggest opportunities, introductions, events, and chapters, but it cannot act or publish without staff approval.</p></div><Badge variant="secondary">{aiReviewQueue.data?.length ?? 0} awaiting review</Badge></div>
+            <div className="mt-4 space-y-3">
+              {aiReviewQueue.isLoading ? <RowsSkeleton count={2} /> : aiReviewQueue.data?.length ? aiReviewQueue.data.map((item) => <div key={item.id} className="flex flex-wrap items-center gap-3 rounded-md border border-border p-3"><div className="min-w-0 flex-1"><p className="text-sm font-medium capitalize">{item.recommendation_type} recommendation</p><p className="mt-1 text-sm text-muted-foreground">{item.rationale}</p><p className="mt-1 text-xs text-muted-foreground">Member reference {item.profile_id.slice(0, 8)} · submitted {formatDate(item.created_at)}</p></div><Button size="sm" disabled={reviewAiRecommendation.isPending} onClick={() => reviewAiRecommendation.mutate({ id: item.id, status: "approved" })}>Approve</Button><Button size="sm" variant="ghost" disabled={reviewAiRecommendation.isPending} onClick={() => reviewAiRecommendation.mutate({ id: item.id, status: "rejected" })}>Reject</Button></div>) : <p className="py-3 text-sm text-muted-foreground">No AI recommendations are awaiting review.</p>}
+            </div>
           </div>
         </TabsContent>
 
